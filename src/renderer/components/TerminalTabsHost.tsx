@@ -1,10 +1,12 @@
-import React, { useCallback, useRef } from 'react';
+import React, { Suspense, lazy, useCallback, useRef } from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { activeTabIdAtom, focusPaneAtom, splitLayoutAtom, splitRatioAtom, tabsAtom } from '../state/tabs';
-import { TerminalView } from './TerminalView';
 
 const MIN_RATIO = 0.15;
 const MAX_RATIO = 0.85;
+
+// Lazy-load so xterm.js and its addons ship in a separate chunk, fetched on first terminal render.
+const TerminalView = lazy(() => import('./TerminalView').then((module) => ({ default: module.TerminalView })));
 
 /**
  * Renders every open tab's viewport simultaneously and toggles CSS visibility,
@@ -77,15 +79,18 @@ export function TerminalTabsHost(): React.JSX.Element {
               focusPane(tab.id === splitLayout.primaryTabId ? 'primary' : 'secondary');
             }}
           >
-            <TerminalView
-              tabId={tab.id}
-              isActive={tab.id === activeTabId}
-              cwd={tab.cwd}
-              onFocus={() => {
-                if (!splitLayout) return;
-                focusPane(tab.id === splitLayout.primaryTabId ? 'primary' : 'secondary');
-              }}
-            />
+            <Suspense fallback={<div className="terminal-view" />}>
+              <TerminalView
+                tabId={tab.id}
+                isActive={tab.id === activeTabId}
+                cwd={tab.cwd}
+                initialCommand={tab.initialCommand}
+                onFocus={() => {
+                  if (!splitLayout) return;
+                  focusPane(tab.id === splitLayout.primaryTabId ? 'primary' : 'secondary');
+                }}
+              />
+            </Suspense>
           </div>
         );
       })}

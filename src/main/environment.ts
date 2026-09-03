@@ -1,6 +1,9 @@
 import * as os from 'os';
 
-export function resolveShell(): string {
+export function resolveShell(override?: string): string {
+  if (override && override.trim().length > 0) {
+    return override.trim();
+  }
   if (process.platform === 'win32') {
     return process.env.COMSPEC ?? 'cmd.exe';
   }

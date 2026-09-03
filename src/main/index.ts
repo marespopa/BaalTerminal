@@ -1,7 +1,9 @@
 import { app, BrowserWindow, Menu } from 'electron';
 import path from 'path';
 import { BaalMcpServer } from './mcp-server';
+import { PathPickerDialog } from './path-picker';
 import { PtyManager } from './pty-manager';
+import { ShellOpener } from './shell-opener';
 import { WindowControls } from './window-controls';
 import { BookmarksStore, SettingsStore, SnippetsStore } from './store';
 
@@ -13,6 +15,8 @@ let windowControls: WindowControls | null = null;
 let bookmarksStore: BookmarksStore | null = null;
 let snippetsStore: SnippetsStore | null = null;
 let settingsStore: SettingsStore | null = null;
+let pathPickerDialog: PathPickerDialog | null = null;
+let shellOpener: ShellOpener | null = null;
 
 function createSplashWindow(): BrowserWindow {
   const splash = new BrowserWindow({
@@ -40,6 +44,7 @@ function createWindow(): void {
     minWidth: 600,
     minHeight: 400,
     backgroundColor: '#1e1e1e',
+    icon: path.join(__dirname, '../../favicon.ico'),
     frame: false,
     show: false,
     webPreferences: {
@@ -52,8 +57,6 @@ function createWindow(): void {
 
   if (ptyManager === null) {
     ptyManager = new PtyManager(mainWindow);
-    mcpServer = new BaalMcpServer(ptyManager);
-    void mcpServer.start().catch((error: unknown) => console.error('Unable to start MCP server:', error));
   } else {
     ptyManager.setWindow(mainWindow);
   }
@@ -82,6 +85,27 @@ function createWindow(): void {
     settingsStore.setWindow(mainWindow);
   }
 
+  if (mcpServer === null) {
+    const activePtyManager = ptyManager;
+    void settingsStore.getSettings().then((settings) => {
+      if (!settings.mcpEnabled) return;
+      mcpServer = new BaalMcpServer(activePtyManager);
+      return mcpServer.start();
+    }).catch((error: unknown) => console.error('Unable to start MCP server:', error));
+  }
+
+  if (pathPickerDialog === null) {
+    pathPickerDialog = new PathPickerDialog(mainWindow);
+  } else {
+    pathPickerDialog.setWindow(mainWindow);
+  }
+
+  if (shellOpener === null) {
+    shellOpener = new ShellOpener(mainWindow);
+  } else {
+    shellOpener.setWindow(mainWindow);
+  }
+
   if (!app.isPackaged) {
     void mainWindow.loadURL('http://localhost:5173');
   } else {
@@ -101,6 +125,8 @@ function createWindow(): void {
     bookmarksStore?.setWindow(null);
     snippetsStore?.setWindow(null);
     settingsStore?.setWindow(null);
+    pathPickerDialog?.setWindow(null);
+    shellOpener?.setWindow(null);
     mainWindow = null;
   });
 

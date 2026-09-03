@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Minus, Square, Copy, X, Sun, Moon } from 'lucide-react';
 import { useAtom } from 'jotai';
 import { themeAtom } from '../state/theme';
+import logoUrl from '../../../favicon.svg';
 
 export function TitleBar(): React.JSX.Element {
   const [isMaximized, setIsMaximized] = useState(false);
@@ -12,6 +13,7 @@ export function TitleBar(): React.JSX.Element {
   return (
     <div className="titlebar">
       <div className="titlebar__drag">
+        <img className="titlebar__logo" src={logoUrl} alt="" aria-hidden="true" />
         <span className="titlebar__title">BaalTerminal</span>
       </div>
       <div className="titlebar__controls">

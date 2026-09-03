@@ -1,4 +1,4 @@
-import type { BookmarksApi, SnippetsApi, TerminalApi, AppWindowApi, SettingsApi } from '../../preload/types';
+import type { BookmarksApi, SnippetsApi, TerminalApi, AppWindowApi, SettingsApi, PathPickerApi, ShellOpenerApi } from '../../preload/types';
 
 declare global {
   interface Window {
@@ -7,6 +7,8 @@ declare global {
     bookmarks: BookmarksApi;
     snippets: SnippetsApi;
     settings: SettingsApi;
+    pathPicker: PathPickerApi;
+    shellOpener: ShellOpenerApi;
   }
 }
 

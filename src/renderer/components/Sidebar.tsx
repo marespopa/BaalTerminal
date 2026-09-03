@@ -1,12 +1,14 @@
-import React, { useCallback, useRef } from 'react';
+import React, { Suspense, lazy, useCallback, useRef } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import { activePanelAtom, sidebarWidthAtom } from '../state/sidebar';
-import { BookmarksPanel } from './BookmarksPanel';
-import { SnippetsPanel } from './SnippetsPanel';
-import { SettingsPanel } from './SettingsPanel';
 
 const MIN_WIDTH = 160;
 const MAX_WIDTH = 480;
+
+// Lazy-load panels so they only ship when the user actually opens them.
+const BookmarksPanel = lazy(() => import('./BookmarksPanel').then((module) => ({ default: module.BookmarksPanel })));
+const SnippetsPanel = lazy(() => import('./SnippetsPanel').then((module) => ({ default: module.SnippetsPanel })));
+const SettingsPanel = lazy(() => import('./SettingsPanel').then((module) => ({ default: module.SettingsPanel })));
 
 export function Sidebar(): React.JSX.Element | null {
   const activePanel = useAtomValue(activePanelAtom);
@@ -39,7 +41,9 @@ export function Sidebar(): React.JSX.Element | null {
 
   return (
     <div className="sidebar" style={{ width }}>
-      {activePanel === 'bookmarks' ? <BookmarksPanel /> : activePanel === 'snippets' ? <SnippetsPanel /> : <SettingsPanel />}
+      <Suspense fallback={null}>
+        {activePanel === 'bookmarks' ? <BookmarksPanel /> : activePanel === 'snippets' ? <SnippetsPanel /> : <SettingsPanel />}
+      </Suspense>
       <div
         className="sidebar__resize-handle"
         onPointerDown={handlePointerDown}

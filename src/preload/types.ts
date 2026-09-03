@@ -2,6 +2,8 @@ export interface CreateTerminalOptions {
   cols?: number;
   rows?: number;
   cwd?: string;
+  shellOverride?: string;
+  shellArgs?: string[];
 }
 
 export interface TerminalApi {
@@ -35,6 +37,16 @@ export interface Snippet {
 
 export interface AppSettings {
   defaultCwd: string;
+  editorCommand: string;
+  shellOverride: string;
+  shellArgs: string;
+  fontFamily: string;
+  fontSize: number;
+  cursorStyle: 'block' | 'underline' | 'bar';
+  cursorBlink: boolean;
+  scrollback: number;
+  confirmBeforeClose: boolean;
+  mcpEnabled: boolean;
 }
 
 export interface BookmarksApi {
@@ -52,4 +64,21 @@ export interface SnippetsApi {
 export interface SettingsApi {
   get(): Promise<AppSettings>;
   set(settings: AppSettings): Promise<AppSettings>;
+}
+
+export interface PickPathResult {
+  path: string;
+  isDirectory: boolean;
+  dirName: string;
+  baseName: string;
+  quotedPath: string;
+}
+
+export interface PathPickerApi {
+  pickFile(): Promise<PickPathResult | null>;
+  pickFolder(): Promise<PickPathResult | null>;
+}
+
+export interface ShellOpenerApi {
+  openPath(path: string): Promise<void>;
 }

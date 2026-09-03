@@ -123,9 +123,31 @@ export class SnippetsStore extends JsonListStore<Snippet> {
 
 export interface AppSettings {
   defaultCwd: string;
+  editorCommand: string;
+  shellOverride: string;
+  shellArgs: string;
+  fontFamily: string;
+  fontSize: number;
+  cursorStyle: 'block' | 'underline' | 'bar';
+  cursorBlink: boolean;
+  scrollback: number;
+  confirmBeforeClose: boolean;
+  mcpEnabled: boolean;
 }
 
-const DEFAULT_SETTINGS: AppSettings = { defaultCwd: '' };
+const DEFAULT_SETTINGS: AppSettings = {
+  defaultCwd: '',
+  editorCommand: 'nvim',
+  shellOverride: '',
+  shellArgs: '',
+  fontFamily: '"JetBrainsMono Nerd Font", "FiraCode Nerd Font", "JetBrains Mono", "Fira Code", monospace',
+  fontSize: 14,
+  cursorStyle: 'block',
+  cursorBlink: true,
+  scrollback: 5000,
+  confirmBeforeClose: false,
+  mcpEnabled: true,
+};
 
 /** Single JSON-object-backed settings file, persisted under userData. */
 export class SettingsStore {
@@ -159,11 +181,70 @@ export class SettingsStore {
     if (typeof settings !== 'object' || settings === null) {
       throw new Error('Invalid settings');
     }
-    const { defaultCwd } = settings as Partial<AppSettings>;
+    const {
+      defaultCwd,
+      editorCommand,
+      shellOverride,
+      shellArgs,
+      fontFamily,
+      fontSize,
+      cursorStyle,
+      cursorBlink,
+      scrollback,
+      confirmBeforeClose,
+      mcpEnabled,
+    } = settings as Partial<AppSettings>;
     if (defaultCwd !== undefined && (typeof defaultCwd !== 'string' || defaultCwd.length > MAX_VALUE_LENGTH)) {
       throw new Error('Invalid defaultCwd');
     }
-    return { defaultCwd: defaultCwd ?? '' };
+    if (editorCommand !== undefined && (typeof editorCommand !== 'string' || editorCommand.length > MAX_VALUE_LENGTH)) {
+      throw new Error('Invalid editorCommand');
+    }
+    if (shellOverride !== undefined && (typeof shellOverride !== 'string' || shellOverride.length > MAX_VALUE_LENGTH)) {
+      throw new Error('Invalid shellOverride');
+    }
+    if (shellArgs !== undefined && (typeof shellArgs !== 'string' || shellArgs.length > MAX_VALUE_LENGTH)) {
+      throw new Error('Invalid shellArgs');
+    }
+    if (fontFamily !== undefined && (typeof fontFamily !== 'string' || fontFamily.length > MAX_VALUE_LENGTH)) {
+      throw new Error('Invalid fontFamily');
+    }
+    if (fontSize !== undefined && (typeof fontSize !== 'number' || !Number.isFinite(fontSize) || fontSize < 6 || fontSize > 72)) {
+      throw new Error('Invalid fontSize');
+    }
+    if (cursorStyle !== undefined && !['block', 'underline', 'bar'].includes(cursorStyle)) {
+      throw new Error('Invalid cursorStyle');
+    }
+    if (cursorBlink !== undefined && typeof cursorBlink !== 'boolean') {
+      throw new Error('Invalid cursorBlink');
+    }
+    if (scrollback !== undefined && (typeof scrollback !== 'number' || !Number.isInteger(scrollback) || scrollback < 0 || scrollback > 1_000_000)) {
+      throw new Error('Invalid scrollback');
+    }
+    if (confirmBeforeClose !== undefined && typeof confirmBeforeClose !== 'boolean') {
+      throw new Error('Invalid confirmBeforeClose');
+    }
+    if (mcpEnabled !== undefined && typeof mcpEnabled !== 'boolean') {
+      throw new Error('Invalid mcpEnabled');
+    }
+    return {
+      defaultCwd: defaultCwd ?? '',
+      editorCommand: editorCommand?.trim() || 'nvim',
+      shellOverride: shellOverride ?? '',
+      shellArgs: shellArgs ?? '',
+      fontFamily: fontFamily?.trim() || DEFAULT_SETTINGS.fontFamily,
+      fontSize: fontSize ?? DEFAULT_SETTINGS.fontSize,
+      cursorStyle: cursorStyle ?? DEFAULT_SETTINGS.cursorStyle,
+      cursorBlink: cursorBlink ?? DEFAULT_SETTINGS.cursorBlink,
+      scrollback: scrollback ?? DEFAULT_SETTINGS.scrollback,
+      confirmBeforeClose: confirmBeforeClose ?? false,
+      mcpEnabled: mcpEnabled ?? true,
+    };
+  }
+
+  /** Reads persisted settings without going through the IPC sender check, for main-process startup decisions. */
+  public async getSettings(): Promise<AppSettings> {
+    return this.get();
   }
 
   private async get(): Promise<AppSettings> {

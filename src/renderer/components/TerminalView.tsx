@@ -7,14 +7,14 @@ import { CanvasAddon } from '@xterm/addon-canvas';
 import { useAtomValue, useSetAtom } from 'jotai';
 import '@xterm/xterm/css/xterm.css';
 import { setTabPortsAtom } from '../state/tabs';
+import { settingsAtom } from '../state/settings';
 import { terminalThemes, themeAtom } from '../state/theme';
-
-const FONT_FAMILY = '"JetBrainsMono Nerd Font", "FiraCode Nerd Font", "JetBrains Mono", "Fira Code", monospace';
 
 export interface TerminalViewProps {
   tabId: string;
   isActive: boolean;
   cwd?: string;
+  initialCommand?: string;
   onFocus?: () => void;
 }
 
@@ -22,20 +22,24 @@ export interface TerminalViewProps {
  * Mounts a single Xterm.js instance bound to one PTY session via the preload bridge.
  * Kept mounted for the lifetime of its tab so scrollback and TUI state survive tab switches.
  */
-export function TerminalView({ tabId, isActive, cwd, onFocus }: TerminalViewProps): React.JSX.Element {
+export function TerminalView({ tabId, isActive, cwd, initialCommand, onFocus }: TerminalViewProps): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const setTabPorts = useSetAtom(setTabPortsAtom);
   const theme = useAtomValue(themeAtom);
+  const settings = useAtomValue(settingsAtom);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
     const term = new Terminal({
-      fontFamily: FONT_FAMILY,
-      fontSize: 14,
+      fontFamily: settings.fontFamily,
+      fontSize: settings.fontSize,
+      cursorStyle: settings.cursorStyle,
+      cursorBlink: settings.cursorBlink,
+      scrollback: settings.scrollback,
       allowTransparency: false,
       theme: terminalThemes[theme],
       windowsMode: navigator.userAgent.includes('Windows'),
@@ -62,16 +66,20 @@ export function TerminalView({ tabId, isActive, cwd, onFocus }: TerminalViewProp
     let disposed = false;
     const disposables: Array<() => void> = [];
 
-    void window.terminal.create(tabId, { cols: term.cols, rows: term.rows, cwd }).then(() => {
-      if (disposed) return;
-      disposables.push(window.terminal.onOutput(tabId, (data) => term.write(data)));
-      disposables.push(window.terminal.onPorts(tabId, (ports) => setTabPorts(tabId, ports)));
-      disposables.push(
-        window.terminal.onExit(tabId, () => {
-          term.write('\r\n\x1b[90m[process exited]\x1b[0m\r\n');
-        }),
-      );
-    });
+    const shellArgs = settings.shellArgs.trim().length > 0 ? settings.shellArgs.trim().split(/\s+/) : undefined;
+    void window.terminal
+      .create(tabId, { cols: term.cols, rows: term.rows, cwd, shellOverride: settings.shellOverride || undefined, shellArgs })
+      .then(() => {
+        if (disposed) return;
+        disposables.push(window.terminal.onOutput(tabId, (data) => term.write(data)));
+        disposables.push(window.terminal.onPorts(tabId, (ports) => setTabPorts(tabId, ports)));
+        disposables.push(
+          window.terminal.onExit(tabId, () => {
+            term.write('\r\n\x1b[90m[process exited]\x1b[0m\r\n');
+          }),
+        );
+        if (initialCommand) window.terminal.input(tabId, `${initialCommand}\r`);
+      });
 
     const inputDisposable = term.onData((data) => window.terminal.input(tabId, data));
     const resizeDisposable = term.onResize(({ cols, rows }) => window.terminal.resize(tabId, cols, rows));
@@ -95,6 +103,17 @@ export function TerminalView({ tabId, isActive, cwd, onFocus }: TerminalViewProp
   useEffect(() => {
     if (termRef.current) termRef.current.options.theme = terminalThemes[theme];
   }, [theme]);
+
+  useEffect(() => {
+    const term = termRef.current;
+    if (!term) return;
+    term.options.fontFamily = settings.fontFamily;
+    term.options.fontSize = settings.fontSize;
+    term.options.cursorStyle = settings.cursorStyle;
+    term.options.cursorBlink = settings.cursorBlink;
+    term.options.scrollback = settings.scrollback;
+    fitAddonRef.current?.fit();
+  }, [settings.fontFamily, settings.fontSize, settings.cursorStyle, settings.cursorBlink, settings.scrollback]);
 
   useEffect(() => {
     if (!isActive) return;

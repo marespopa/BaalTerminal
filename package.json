@@ -5,7 +5,7 @@
   "main": "dist/main/index.js",
   "scripts": {
     "dev": "concurrently \"npm:build:watch\" \"npm:vite:dev\" \"npm:electron:start\"",
-    "build": "tsc && vite build",
+    "build": "tsc && tsc -p tsconfig.renderer.json && vite build",
     "build:watch": "tsc -w",
     "vite:dev": "vite --host 127.0.0.1",
     "electron:start": "electron .",
@@ -25,13 +25,15 @@
     "files": [
       "dist/**/*",
       "splash.html",
-      "package.json"
+      "package.json",
+      "web-app-manifest-512x512.png"
     ],
     "asarUnpack": [
       "**/node_modules/node-pty/**/*"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "web-app-manifest-512x512.png"
     }
   },
   "dependencies": {

@@ -7,11 +7,14 @@ export interface TerminalTabMeta {
   createdAt: number;
   cwd?: string;
   ports?: number[];
+  /** Command to type into the terminal once its shell session is ready, e.g. to open a file in nvim. */
+  initialCommand?: string;
 }
 
 export interface CreateTabOptions {
   title?: string;
   cwd?: string;
+  initialCommand?: string;
 }
 
 export type PaneId = 'primary' | 'secondary';
@@ -54,6 +57,7 @@ export const createTabAtom = atom(null, (get, set, options?: CreateTabOptions) =
     title: options?.title ?? getNextTabTitle(tabs),
     createdAt: Date.now(),
     cwd: options?.cwd ?? (get(settingsAtom).defaultCwd || undefined),
+    initialCommand: options?.initialCommand,
   };
   set(tabsAtom, [...tabs, tab]);
 
@@ -63,6 +67,24 @@ export const createTabAtom = atom(null, (get, set, options?: CreateTabOptions) =
   }
   set(activeTabIdAtom, id);
   return id;
+});
+
+export const openPathAtom = atom(null, async (get, set, kind: 'file' | 'folder') => {
+  const result = kind === 'file' ? await window.pathPicker.pickFile() : await window.pathPicker.pickFolder();
+  if (!result) return;
+
+  const editorCommand = get(settingsAtom).editorCommand || 'nvim';
+  set(createTabAtom, {
+    title: result.baseName,
+    cwd: result.dirName,
+    initialCommand: result.isDirectory ? undefined : `${editorCommand} ${result.quotedPath}`,
+  });
+});
+
+export const openFileWithSystemAppAtom = atom(null, async () => {
+  const result = await window.pathPicker.pickFile();
+  if (!result) return;
+  await window.shellOpener.openPath(result.path);
 });
 
 export const toggleSplitAtom = atom(null, (get, set) => {

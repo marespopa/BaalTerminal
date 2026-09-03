@@ -65,14 +65,19 @@ interface CreateTerminalOptions {
   cols?: number;
   rows?: number;
   cwd?: string;
+  shellOverride?: string;
+  shellArgs?: string[];
 }
+
+const MAX_SHELL_ARGS = 32;
+const MAX_SHELL_ARG_LENGTH = 4_096;
 
 function assertCreateOptions(options: unknown): asserts options is CreateTerminalOptions | undefined {
   if (options === undefined) return;
   if (typeof options !== 'object' || options === null) {
     throw new Error('Invalid create options');
   }
-  const { cols, rows, cwd } = options as Partial<CreateTerminalOptions>;
+  const { cols, rows, cwd, shellOverride, shellArgs } = options as Partial<CreateTerminalOptions>;
   if (cols !== undefined && (typeof cols !== 'number' || !Number.isInteger(cols) || cols < 1 || cols > 1000)) {
     throw new Error('Invalid cols dimension');
   }
@@ -81,6 +86,14 @@ function assertCreateOptions(options: unknown): asserts options is CreateTermina
   }
   if (cwd !== undefined && typeof cwd !== 'string') {
     throw new Error('Invalid cwd');
+  }
+  if (shellOverride !== undefined && typeof shellOverride !== 'string') {
+    throw new Error('Invalid shellOverride');
+  }
+  if (shellArgs !== undefined) {
+    if (!Array.isArray(shellArgs) || shellArgs.length > MAX_SHELL_ARGS || shellArgs.some((arg) => typeof arg !== 'string' || arg.length > MAX_SHELL_ARG_LENGTH)) {
+      throw new Error('Invalid shellArgs');
+    }
   }
 }
 
@@ -129,7 +142,7 @@ export class PtyManager {
 
   private create(tabId: string, options?: CreateTerminalOptions): void {
     if (this.sessions.has(tabId)) return;
-    const session = pty.spawn(resolveShell(), [], {
+    const session = pty.spawn(resolveShell(options?.shellOverride), options?.shellArgs ?? [], {
       name: 'xterm-256color',
       cols: options?.cols ?? 80,
       rows: options?.rows ?? 24,

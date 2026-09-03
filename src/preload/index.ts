@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { AppSettings, AppWindowApi, BookmarksApi, CreateTerminalOptions, SettingsApi, SnippetsApi, TerminalApi } from './types';
+import type { AppSettings, AppWindowApi, BookmarksApi, CreateTerminalOptions, PathPickerApi, SettingsApi, ShellOpenerApi, SnippetsApi, TerminalApi } from './types';
 
 const MAX_LABEL_LENGTH = 200;
 const MAX_VALUE_LENGTH = 20_000;
@@ -22,7 +22,7 @@ function validateCreateOptions(options: unknown): CreateTerminalOptions | undefi
     throw new TypeError('Invalid create options: expected object');
   }
 
-  const { cols, rows, cwd } = options as Partial<CreateTerminalOptions>;
+  const { cols, rows, cwd, shellOverride, shellArgs } = options as Partial<CreateTerminalOptions>;
 
   if (cols !== undefined && (typeof cols !== 'number' || !Number.isInteger(cols) || cols <= 0)) {
     throw new TypeError(`Invalid cols dimension: ${cols}`);
@@ -33,8 +33,14 @@ function validateCreateOptions(options: unknown): CreateTerminalOptions | undefi
   if (cwd !== undefined && typeof cwd !== 'string') {
     throw new TypeError('Invalid cwd: expected string');
   }
+  if (shellOverride !== undefined && typeof shellOverride !== 'string') {
+    throw new TypeError('Invalid shellOverride: expected string');
+  }
+  if (shellArgs !== undefined && (!Array.isArray(shellArgs) || shellArgs.some((arg) => typeof arg !== 'string'))) {
+    throw new TypeError('Invalid shellArgs: expected string array');
+  }
 
-  return { cols, rows, cwd };
+  return { cols, rows, cwd, shellOverride, shellArgs };
 }
 
 const api: TerminalApi = {
@@ -123,8 +129,54 @@ const settingsApi: SettingsApi = {
     if (settings.defaultCwd.length > MAX_VALUE_LENGTH) {
       throw new TypeError('Invalid defaultCwd');
     }
+    if (typeof settings.editorCommand !== 'string' || settings.editorCommand.length > MAX_VALUE_LENGTH) {
+      throw new TypeError('Invalid editorCommand');
+    }
+    if (typeof settings.shellOverride !== 'string' || settings.shellOverride.length > MAX_VALUE_LENGTH) {
+      throw new TypeError('Invalid shellOverride');
+    }
+    if (typeof settings.shellArgs !== 'string' || settings.shellArgs.length > MAX_VALUE_LENGTH) {
+      throw new TypeError('Invalid shellArgs');
+    }
+    if (typeof settings.fontFamily !== 'string' || settings.fontFamily.length > MAX_VALUE_LENGTH) {
+      throw new TypeError('Invalid fontFamily');
+    }
+    if (typeof settings.fontSize !== 'number' || !Number.isFinite(settings.fontSize)) {
+      throw new TypeError('Invalid fontSize');
+    }
+    if (!['block', 'underline', 'bar'].includes(settings.cursorStyle)) {
+      throw new TypeError('Invalid cursorStyle');
+    }
+    if (typeof settings.cursorBlink !== 'boolean') {
+      throw new TypeError('Invalid cursorBlink');
+    }
+    if (typeof settings.scrollback !== 'number' || !Number.isInteger(settings.scrollback)) {
+      throw new TypeError('Invalid scrollback');
+    }
+    if (typeof settings.confirmBeforeClose !== 'boolean') {
+      throw new TypeError('Invalid confirmBeforeClose');
+    }
+    if (typeof settings.mcpEnabled !== 'boolean') {
+      throw new TypeError('Invalid mcpEnabled');
+    }
     return ipcRenderer.invoke('settings:set', settings);
   },
 };
 
 contextBridge.exposeInMainWorld('settings', settingsApi);
+
+const pathPickerApi: PathPickerApi = {
+  pickFile: () => ipcRenderer.invoke('path-picker:pick-file'),
+  pickFolder: () => ipcRenderer.invoke('path-picker:pick-folder'),
+};
+
+contextBridge.exposeInMainWorld('pathPicker', pathPickerApi);
+
+const shellOpenerApi: ShellOpenerApi = {
+  openPath: (path) => {
+    validText(path, 'path', MAX_VALUE_LENGTH);
+    return ipcRenderer.invoke('shell:open-path', path);
+  },
+};
+
+contextBridge.exposeInMainWorld('shellOpener', shellOpenerApi);
