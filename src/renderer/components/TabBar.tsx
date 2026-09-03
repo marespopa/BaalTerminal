@@ -1,20 +1,21 @@
 import React, { useState } from 'react';
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue, useSetAtom } from 'jotai';
 import { Columns2, Plus, SquareTerminal, X } from 'lucide-react';
 import {
   activeTabIdAtom,
   activateTabAtom,
   closeTabAtom,
   createTabAtom,
+  PaneId,
   renameTabAtom,
   splitLayoutAtom,
   tabsAtom,
   toggleSplitAtom,
 } from '../state/tabs';
 
-export function TabBar(): React.JSX.Element {
+export function TabBar({ pane }: { pane?: PaneId }): React.JSX.Element {
   const tabs = useAtomValue(tabsAtom);
-  const [activeTabId] = useAtom(activeTabIdAtom);
+  const activeTabId = useAtomValue(activeTabIdAtom);
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState('');
   const activateTab = useSetAtom(activateTabAtom);
@@ -23,6 +24,8 @@ export function TabBar(): React.JSX.Element {
   const renameTab = useSetAtom(renameTabAtom);
   const toggleSplit = useSetAtom(toggleSplitAtom);
   const splitLayout = useAtomValue(splitLayoutAtom);
+  const panelTabIds = splitLayout ? splitLayout[pane ?? splitLayout.focusedPane].tabIds : tabs.map((tab) => tab.id);
+  const panelTabs = tabs.filter((tab) => panelTabIds.includes(tab.id));
 
   const startEditing = (tabId: string, title: string) => {
     setEditingTabId(tabId);
@@ -40,7 +43,7 @@ export function TabBar(): React.JSX.Element {
 
   return (
     <div className="tab-bar" role="tablist">
-      {tabs.map((tab) => (
+      {panelTabs.map((tab) => (
         <div
           key={tab.id}
           role="tab"

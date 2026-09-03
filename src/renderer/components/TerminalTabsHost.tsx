@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useCallback, useRef } from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { activeTabIdAtom, focusPaneAtom, splitLayoutAtom, splitRatioAtom, tabsAtom } from '../state/tabs';
+import { TabBar } from './TabBar';
 
 const MIN_RATIO = 0.15;
 const MAX_RATIO = 0.85;
@@ -22,7 +23,7 @@ export function TerminalTabsHost(): React.JSX.Element {
   const dragRef = useRef<{ x: number; ratio: number; width: number } | null>(null);
 
   const visibleTabIds = splitLayout
-    ? new Set([splitLayout.primaryTabId, splitLayout.secondaryTabId])
+    ? new Set([splitLayout.primary.activeTabId, splitLayout.secondary.activeTabId])
     : new Set(activeTabId ? [activeTabId] : []);
 
   const handlePointerDown = useCallback(
@@ -54,8 +55,8 @@ export function TerminalTabsHost(): React.JSX.Element {
   return (
     <div className={`terminal-tabs-host${splitLayout ? ' terminal-tabs-host--split' : ''}`} ref={hostRef}>
       {tabs.map((tab) => {
-        const isPrimary = splitLayout?.primaryTabId === tab.id;
-        const isSecondary = splitLayout?.secondaryTabId === tab.id;
+        const isPrimary = splitLayout?.primary.activeTabId === tab.id;
+        const isSecondary = splitLayout?.secondary.activeTabId === tab.id;
         const flexBasis = splitLayout
           ? `${(isPrimary ? splitRatio : isSecondary ? 1 - splitRatio : 0.5) * 100}%`
           : undefined;
@@ -67,7 +68,7 @@ export function TerminalTabsHost(): React.JSX.Element {
             className={`terminal-tabs-host__viewport${isPrimary ? ' terminal-tabs-host__viewport--primary' : ''}${
               isSecondary ? ' terminal-tabs-host__viewport--secondary' : ''
             }${
-              splitLayout && tab.id === (splitLayout.focusedPane === 'primary' ? splitLayout.primaryTabId : splitLayout.secondaryTabId)
+              splitLayout && tab.id === splitLayout[splitLayout.focusedPane].activeTabId
                 ? ' terminal-tabs-host__viewport--focused'
                 : ''
             }`}
@@ -76,9 +77,10 @@ export function TerminalTabsHost(): React.JSX.Element {
             data-tab-id={tab.id}
             onMouseDown={() => {
               if (!splitLayout) return;
-              focusPane(tab.id === splitLayout.primaryTabId ? 'primary' : 'secondary');
+              focusPane(tab.id === splitLayout.primary.activeTabId ? 'primary' : 'secondary');
             }}
           >
+            {isPrimary ? <TabBar pane="primary" /> : isSecondary ? <TabBar pane="secondary" /> : !splitLayout ? <TabBar /> : null}
             <Suspense fallback={<div className="terminal-view" />}>
               <TerminalView
                 tabId={tab.id}
@@ -87,7 +89,7 @@ export function TerminalTabsHost(): React.JSX.Element {
                 initialCommand={tab.initialCommand}
                 onFocus={() => {
                   if (!splitLayout) return;
-                  focusPane(tab.id === splitLayout.primaryTabId ? 'primary' : 'secondary');
+                  focusPane(tab.id === splitLayout.primary.activeTabId ? 'primary' : 'secondary');
                 }}
               />
             </Suspense>

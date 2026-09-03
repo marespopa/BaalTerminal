@@ -5,7 +5,6 @@ import './styles/main.css';
 import { TitleBar } from './components/TitleBar';
 import { ActivityBar } from './components/ActivityBar';
 import { Sidebar } from './components/Sidebar';
-import { TabBar } from './components/TabBar';
 import { TerminalTabsHost } from './components/TerminalTabsHost';
 import { useTabKeyboardShortcuts } from './hooks/useTabShortcuts';
 import { createTabAtom } from './state/tabs';
@@ -33,7 +32,6 @@ function App(): React.JSX.Element {
         <ActivityBar />
         <Sidebar />
         <main className="terminal-shell">
-          <TabBar />
           <TerminalTabsHost />
         </main>
       </div>

@@ -59,13 +59,19 @@ export function TerminalView({ tabId, isActive, cwd, initialCommand, onFocus }: 
     }
 
     term.open(container);
-    fitAddon.fit();
     fitAddonRef.current = fitAddon;
     termRef.current = term;
 
     let disposed = false;
     const disposables: Array<() => void> = [];
 
+    const inputDisposable = term.onData((data) => window.terminal.input(tabId, data));
+    const resizeDisposable = term.onResize(({ cols, rows }) => window.terminal.resize(tabId, cols, rows));
+
+    const resizeObserver = new ResizeObserver(() => fitAddon.fit());
+    resizeObserver.observe(container);
+
+    fitAddon.fit();
     const shellArgs = settings.shellArgs.trim().length > 0 ? settings.shellArgs.trim().split(/\s+/) : undefined;
     void window.terminal
       .create(tabId, { cols: term.cols, rows: term.rows, cwd, shellOverride: settings.shellOverride || undefined, shellArgs })
@@ -80,12 +86,6 @@ export function TerminalView({ tabId, isActive, cwd, initialCommand, onFocus }: 
         );
         if (initialCommand) window.terminal.input(tabId, `${initialCommand}\r`);
       });
-
-    const inputDisposable = term.onData((data) => window.terminal.input(tabId, data));
-    const resizeDisposable = term.onResize(({ cols, rows }) => window.terminal.resize(tabId, cols, rows));
-
-    const resizeObserver = new ResizeObserver(() => fitAddon.fit());
-    resizeObserver.observe(container);
 
     return () => {
       disposed = true;
@@ -118,8 +118,11 @@ export function TerminalView({ tabId, isActive, cwd, initialCommand, onFocus }: 
   useEffect(() => {
     if (!isActive) return;
     // Hidden viewports report a 0x0 layout, so refit before focusing when a tab becomes active.
-    fitAddonRef.current?.fit();
-    termRef.current?.focus();
+    const frame = requestAnimationFrame(() => {
+      fitAddonRef.current?.fit();
+      termRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
   }, [isActive]);
 
   return <div className="terminal-view" ref={containerRef} onMouseDown={onFocus} />;

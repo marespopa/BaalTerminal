@@ -19,9 +19,14 @@ export interface CreateTabOptions {
 
 export type PaneId = 'primary' | 'secondary';
 
+interface TerminalPanel {
+  tabIds: string[];
+  activeTabId: string | null;
+}
+
 interface SplitLayout {
-  primaryTabId: string;
-  secondaryTabId: string;
+  primary: TerminalPanel;
+  secondary: TerminalPanel;
   focusedPane: PaneId;
 }
 
@@ -49,6 +54,12 @@ export const activeTabAtom = atom((get) => {
   return get(tabsAtom).find((tab) => tab.id === activeId) ?? null;
 });
 
+export const focusedPanelTabIdsAtom = atom((get) => {
+  const layout = get(splitLayoutAtom);
+  if (!layout) return get(tabsAtom).map((tab) => tab.id);
+  return layout[layout.focusedPane].tabIds;
+});
+
 export const createTabAtom = atom(null, (get, set, options?: CreateTabOptions) => {
   const tabs = get(tabsAtom);
   const id = createTabId();
@@ -63,7 +74,11 @@ export const createTabAtom = atom(null, (get, set, options?: CreateTabOptions) =
 
   const layout = get(splitLayoutAtom);
   if (layout) {
-    set(splitLayoutAtom, layout.focusedPane === 'primary' ? { ...layout, primaryTabId: id } : { ...layout, secondaryTabId: id });
+    const panel = layout[layout.focusedPane];
+    set(splitLayoutAtom, {
+      ...layout,
+      [layout.focusedPane]: { tabIds: [...panel.tabIds, id], activeTabId: id },
+    });
   }
   set(activeTabIdAtom, id);
   return id;
@@ -90,11 +105,12 @@ export const openFileWithSystemAppAtom = atom(null, async () => {
 export const toggleSplitAtom = atom(null, (get, set) => {
   const existingLayout = get(splitLayoutAtom);
   if (existingLayout) {
+    const focusedPanel = existingLayout[existingLayout.focusedPane];
+    const tabIds = [...existingLayout.primary.tabIds, ...existingLayout.secondary.tabIds];
+    const tabsById = new Map(get(tabsAtom).map((tab) => [tab.id, tab]));
+    set(tabsAtom, tabIds.map((tabId) => tabsById.get(tabId)).filter((tab): tab is TerminalTabMeta => tab !== undefined));
     set(splitLayoutAtom, null);
-    set(
-      activeTabIdAtom,
-      existingLayout.focusedPane === 'primary' ? existingLayout.primaryTabId : existingLayout.secondaryTabId,
-    );
+    set(activeTabIdAtom, focusedPanel.activeTabId);
     return;
   }
 
@@ -102,18 +118,13 @@ export const toggleSplitAtom = atom(null, (get, set) => {
   const primaryTabId = get(activeTabIdAtom) ?? tabs[0]?.id;
   if (!primaryTabId) return;
 
-  let nextTabs = tabs;
-  let secondaryTabId = tabs.find((tab) => tab.id !== primaryTabId)?.id;
-  if (!secondaryTabId) {
-    secondaryTabId = createTabId();
-    nextTabs = [
-      ...tabs,
-      { id: secondaryTabId, title: getNextTabTitle(tabs), createdAt: Date.now() },
-    ];
-    set(tabsAtom, nextTabs);
-  }
-
-  set(splitLayoutAtom, { primaryTabId, secondaryTabId, focusedPane: 'primary' });
+  const secondaryTabId = createTabId();
+  set(tabsAtom, [...tabs, { id: secondaryTabId, title: getNextTabTitle(tabs), createdAt: Date.now() }]);
+  set(splitLayoutAtom, {
+    primary: { tabIds: tabs.map((tab) => tab.id), activeTabId: primaryTabId },
+    secondary: { tabIds: [secondaryTabId], activeTabId: secondaryTabId },
+    focusedPane: 'primary',
+  });
   set(activeTabIdAtom, primaryTabId);
 });
 
@@ -122,7 +133,7 @@ export const focusPaneAtom = atom(null, (get, set, pane: PaneId) => {
   if (!layout) return;
 
   set(splitLayoutAtom, { ...layout, focusedPane: pane });
-  set(activeTabIdAtom, pane === 'primary' ? layout.primaryTabId : layout.secondaryTabId);
+  set(activeTabIdAtom, layout[pane].activeTabId);
 });
 
 export const closeTabAtom = atom(null, (get, set, tabId: string) => {
@@ -134,10 +145,25 @@ export const closeTabAtom = atom(null, (get, set, tabId: string) => {
   set(tabsAtom, nextTabs);
 
   const layout = get(splitLayoutAtom);
-  if (layout && (layout.primaryTabId === tabId || layout.secondaryTabId === tabId)) {
-    const remainingTabId = layout.primaryTabId === tabId ? layout.secondaryTabId : layout.primaryTabId;
-    set(splitLayoutAtom, null);
-    set(activeTabIdAtom, remainingTabId);
+  if (layout) {
+    const pane = layout.primary.tabIds.includes(tabId) ? 'primary' : layout.secondary.tabIds.includes(tabId) ? 'secondary' : null;
+    if (!pane) return;
+
+    const panel = layout[pane];
+    const remainingTabIds = panel.tabIds.filter((id) => id !== tabId);
+    if (remainingTabIds.length === 0) {
+      const otherPane: PaneId = pane === 'primary' ? 'secondary' : 'primary';
+      const otherPanel = layout[otherPane];
+      set(tabsAtom, nextTabs.filter((tab) => otherPanel.tabIds.includes(tab.id)));
+      set(splitLayoutAtom, null);
+      set(activeTabIdAtom, otherPanel.activeTabId);
+      return;
+    }
+
+    const activeTabId = panel.activeTabId === tabId ? remainingTabIds[Math.min(index, remainingTabIds.length - 1)] : panel.activeTabId;
+    const nextLayout = { ...layout, [pane]: { tabIds: remainingTabIds, activeTabId } };
+    set(splitLayoutAtom, nextLayout);
+    if (layout.focusedPane === pane) set(activeTabIdAtom, activeTabId);
     return;
   }
 
@@ -157,15 +183,13 @@ export const activateTabAtom = atom(null, (get, set, tabId: string) => {
     return;
   }
 
-  if (tabId === layout.primaryTabId) {
-    set(splitLayoutAtom, { ...layout, focusedPane: 'primary' });
-  } else if (tabId === layout.secondaryTabId) {
-    set(splitLayoutAtom, { ...layout, focusedPane: 'secondary' });
-  } else if (layout.focusedPane === 'primary') {
-    set(splitLayoutAtom, { ...layout, primaryTabId: tabId });
-  } else {
-    set(splitLayoutAtom, { ...layout, secondaryTabId: tabId });
-  }
+  const pane: PaneId | null = layout.primary.tabIds.includes(tabId)
+    ? 'primary'
+    : layout.secondary.tabIds.includes(tabId)
+      ? 'secondary'
+      : null;
+  if (!pane) return;
+  set(splitLayoutAtom, { ...layout, focusedPane: pane, [pane]: { ...layout[pane], activeTabId: tabId } });
   set(activeTabIdAtom, tabId);
 });
 
@@ -190,27 +214,20 @@ export const renameTabAtom = atom(null, (get, set, tabId: string, title: string)
 });
 
 export const activateRelativeTabAtom = atom(null, (get, set, direction: 1 | -1) => {
-  const tabs = get(tabsAtom);
-  if (tabs.length === 0) return;
-
-  const currentIndex = tabs.findIndex((tab) => tab.id === get(activeTabIdAtom));
-  const baseIndex = currentIndex === -1 ? 0 : currentIndex;
-  const nextIndex = (baseIndex + direction + tabs.length) % tabs.length;
-  const nextTabId = tabs[nextIndex].id;
   const layout = get(splitLayoutAtom);
+  const tabIds = layout ? layout[layout.focusedPane].tabIds : get(tabsAtom).map((tab) => tab.id);
+  if (tabIds.length === 0) return;
+
+  const currentIndex = tabIds.findIndex((tabId) => tabId === get(activeTabIdAtom));
+  const baseIndex = currentIndex === -1 ? 0 : currentIndex;
+  const nextIndex = (baseIndex + direction + tabIds.length) % tabIds.length;
+  const nextTabId = tabIds[nextIndex];
   if (!layout) {
     set(activeTabIdAtom, nextTabId);
     return;
   }
 
-  if (nextTabId === layout.primaryTabId) {
-    set(splitLayoutAtom, { ...layout, focusedPane: 'primary' });
-  } else if (nextTabId === layout.secondaryTabId) {
-    set(splitLayoutAtom, { ...layout, focusedPane: 'secondary' });
-  } else if (layout.focusedPane === 'primary') {
-    set(splitLayoutAtom, { ...layout, primaryTabId: nextTabId });
-  } else {
-    set(splitLayoutAtom, { ...layout, secondaryTabId: nextTabId });
-  }
+  const pane = layout.focusedPane;
+  set(splitLayoutAtom, { ...layout, [pane]: { ...layout[pane], activeTabId: nextTabId } });
   set(activeTabIdAtom, nextTabId);
 });

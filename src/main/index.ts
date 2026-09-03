@@ -18,6 +18,8 @@ let settingsStore: SettingsStore | null = null;
 let pathPickerDialog: PathPickerDialog | null = null;
 let shellOpener: ShellOpener | null = null;
 
+app.setAppUserModelId('com.baalterminal.app');
+
 function createSplashWindow(): BrowserWindow {
   const splash = new BrowserWindow({
     width: 360,
