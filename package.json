@@ -1,0 +1,64 @@
+{
+  "name": "baal-terminal",
+  "version": "1.0.0",
+  "description": "High-performance multi-tab Electron terminal built for Neovim and AI CLIs",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "dev": "concurrently \"npm:build:watch\" \"npm:vite:dev\" \"npm:electron:start\"",
+    "build": "tsc && vite build",
+    "build:watch": "tsc -w",
+    "vite:dev": "vite --host 127.0.0.1",
+    "electron:start": "electron .",
+    "rebuild": "electron-rebuild -f -w node-pty",
+    "postinstall": "npm run rebuild",
+    "package": "npm run build && electron-builder --win",
+    "package:dir": "npm run build && electron-builder --win --dir",
+    "package:mac": "npm run build && electron-builder --mac",
+    "package:linux": "npm run build && electron-builder --linux"
+  },
+  "build": {
+    "appId": "com.baalterminal.app",
+    "productName": "BaalTerminal",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "splash.html",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "**/node_modules/node-pty/**/*"
+    ],
+    "win": {
+      "target": "nsis"
+    }
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@xterm/addon-canvas": "^0.7.0",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/addon-web-links": "^0.11.0",
+    "@xterm/addon-webgl": "^0.18.0",
+    "@xterm/xterm": "^5.5.0",
+    "jotai": "^2.8.0",
+    "lucide-react": "^1.40.0",
+    "node-pty": "^1.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tree-kill": "^1.2.2",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3",
+    "electron-rebuild": "^3.2.9",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.0"
+  }
+}
