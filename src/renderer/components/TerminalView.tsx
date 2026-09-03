@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
@@ -9,6 +9,7 @@ import '@xterm/xterm/css/xterm.css';
 import { setTabPortsAtom } from '../state/tabs';
 import { settingsAtom } from '../state/settings';
 import { terminalThemes, themeAtom } from '../state/theme';
+import { TerminalContextMenu } from './TerminalContextMenu';
 
 export interface TerminalViewProps {
   tabId: string;
@@ -29,6 +30,7 @@ export function TerminalView({ tabId, isActive, cwd, initialCommand, onFocus }: 
   const setTabPorts = useSetAtom(setTabPortsAtom);
   const theme = useAtomValue(themeAtom);
   const settings = useAtomValue(settingsAtom);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; hasSelection: boolean } | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -61,6 +63,24 @@ export function TerminalView({ tabId, isActive, cwd, initialCommand, onFocus }: 
     term.open(container);
     fitAddonRef.current = fitAddon;
     termRef.current = term;
+
+    // Intercept right-click in the capture phase, before it reaches xterm's own element:
+    // xterm forwards right mousedown to mouse-tracking CLIs (breaking selection) and its
+    // built-in contextmenu handler steals focus to a hidden textarea. Stopping propagation
+    // here keeps the terminal selection intact so our own context menu can copy it.
+    const handleNativeMouseDown = (event: MouseEvent) => {
+      if (event.button === 2) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    const handleNativeContextMenu = (event: MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setContextMenu({ x: event.clientX, y: event.clientY, hasSelection: !!termRef.current?.hasSelection() });
+    };
+    container.addEventListener('mousedown', handleNativeMouseDown, true);
+    container.addEventListener('contextmenu', handleNativeContextMenu, true);
 
     let disposed = false;
     const disposables: Array<() => void> = [];
@@ -95,6 +115,8 @@ export function TerminalView({ tabId, isActive, cwd, initialCommand, onFocus }: 
       inputDisposable.dispose();
       resizeDisposable.dispose();
       disposables.forEach((dispose) => dispose());
+      container.removeEventListener('mousedown', handleNativeMouseDown, true);
+      container.removeEventListener('contextmenu', handleNativeContextMenu, true);
       window.terminal.destroy(tabId);
       term.dispose();
     };
@@ -125,5 +147,50 @@ export function TerminalView({ tabId, isActive, cwd, initialCommand, onFocus }: 
     return () => cancelAnimationFrame(frame);
   }, [isActive]);
 
-  return <div className="terminal-view" ref={containerRef} onMouseDown={onFocus} />;
+  const closeContextMenu = useCallback(() => setContextMenu(null), []);
+
+  const handleCopy = useCallback(() => {
+    const term = termRef.current;
+    if (term?.hasSelection()) void navigator.clipboard.writeText(term.getSelection());
+    closeContextMenu();
+  }, [closeContextMenu]);
+
+  const handlePaste = useCallback(() => {
+    void navigator.clipboard
+      .readText()
+      .then((text) => {
+        if (text) termRef.current?.paste(text);
+      })
+      .catch((error: unknown) => {
+        console.error('Failed to read clipboard:', error);
+      });
+    closeContextMenu();
+  }, [closeContextMenu]);
+
+  const handleSelectAll = useCallback(() => {
+    termRef.current?.selectAll();
+    closeContextMenu();
+  }, [closeContextMenu]);
+
+  const handleClear = useCallback(() => {
+    termRef.current?.clear();
+    closeContextMenu();
+  }, [closeContextMenu]);
+
+  return (
+    <div className="terminal-view" ref={containerRef} onMouseDown={onFocus}>
+      {contextMenu && (
+        <TerminalContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          hasSelection={contextMenu.hasSelection}
+          onCopy={handleCopy}
+          onPaste={handlePaste}
+          onSelectAll={handleSelectAll}
+          onClear={handleClear}
+          onClose={closeContextMenu}
+        />
+      )}
+    </div>
+  );
 }

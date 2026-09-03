@@ -160,7 +160,10 @@ export const closeTabAtom = atom(null, (get, set, tabId: string) => {
       return;
     }
 
-    const activeTabId = panel.activeTabId === tabId ? remainingTabIds[Math.min(index, remainingTabIds.length - 1)] : panel.activeTabId;
+    const panelIndex = panel.tabIds.indexOf(tabId);
+    const activeTabId = panel.activeTabId === tabId
+      ? remainingTabIds[Math.min(panelIndex, remainingTabIds.length - 1)]
+      : panel.activeTabId;
     const nextLayout = { ...layout, [pane]: { tabIds: remainingTabIds, activeTabId } };
     set(splitLayoutAtom, nextLayout);
     if (layout.focusedPane === pane) set(activeTabIdAtom, activeTabId);

@@ -26,6 +26,7 @@ export function TabBar({ pane }: { pane?: PaneId }): React.JSX.Element {
   const splitLayout = useAtomValue(splitLayoutAtom);
   const panelTabIds = splitLayout ? splitLayout[pane ?? splitLayout.focusedPane].tabIds : tabs.map((tab) => tab.id);
   const panelTabs = tabs.filter((tab) => panelTabIds.includes(tab.id));
+  const panelActiveTabId = splitLayout ? splitLayout[pane ?? splitLayout.focusedPane].activeTabId : activeTabId;
 
   const startEditing = (tabId: string, title: string) => {
     setEditingTabId(tabId);
@@ -47,8 +48,8 @@ export function TabBar({ pane }: { pane?: PaneId }): React.JSX.Element {
         <div
           key={tab.id}
           role="tab"
-          aria-selected={tab.id === activeTabId}
-          className={`tab-bar__tab${tab.id === activeTabId ? ' tab-bar__tab--active' : ''}`}
+          aria-selected={tab.id === panelActiveTabId}
+          className={`tab-bar__tab${tab.id === panelActiveTabId ? ' tab-bar__tab--active' : ''}`}
           onClick={() => (editingTabId === tab.id ? undefined : activateTab(tab.id))}
         >
           <SquareTerminal size={14} className="tab-bar__icon" />

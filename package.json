@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "High-performance multi-tab Electron terminal built for Neovim and AI CLIs",
   "main": "dist/main/index.js",
+  "author": "BaalTerminal",
   "scripts": {
     "dev": "concurrently \"npm:build:watch\" \"npm:vite:dev\" \"npm:electron:start\"",
     "build": "tsc && tsc -p tsconfig.renderer.json && vite build",
