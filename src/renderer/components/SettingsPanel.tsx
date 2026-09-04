@@ -10,6 +10,8 @@ export function SettingsPanel(): React.JSX.Element {
 
   const [draft, setDraft] = useState<AppSettings>(settings);
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [fontFamilies, setFontFamilies] = useState<string[]>([]);
+  const [fontLoadStatus, setFontLoadStatus] = useState<'idle' | 'loading' | 'loaded' | 'unavailable'>('idle');
 
   useEffect(() => {
     void loadSettings();
@@ -22,6 +24,26 @@ export function SettingsPanel(): React.JSX.Element {
   const patch = <K extends keyof AppSettings>(key: K, value: AppSettings[K]): void => {
     setDraft((current) => ({ ...current, [key]: value }));
     setStatus('idle');
+  };
+
+  const loadFontFamilies = async (): Promise<void> => {
+    if (fontLoadStatus !== 'idle') return;
+    if (!window.queryLocalFonts) {
+      setFontLoadStatus('unavailable');
+      return;
+    }
+
+    setFontLoadStatus('loading');
+    try {
+      const fonts = await window.queryLocalFonts();
+      const families = [...new Set(fonts.map((font) => font.family).filter(Boolean))]
+        .sort((left, right) => left.localeCompare(right));
+      setFontFamilies(families);
+      setFontLoadStatus('loaded');
+    } catch (error: unknown) {
+      console.error('Unable to enumerate local fonts:', error);
+      setFontLoadStatus('unavailable');
+    }
   };
 
   const save = (event: React.FormEvent): void => {
@@ -90,7 +112,21 @@ export function SettingsPanel(): React.JSX.Element {
         <label className="settings-panel__label" htmlFor="font-family">
           Font family
         </label>
-        <input id="font-family" value={draft.fontFamily} onChange={(event) => patch('fontFamily', event.target.value)} />
+        <input
+          id="font-family"
+          list="font-family-options"
+          autoComplete="off"
+          value={draft.fontFamily}
+          onFocus={() => void loadFontFamilies()}
+          onChange={(event) => patch('fontFamily', event.target.value)}
+        />
+        <datalist id="font-family-options">
+          {fontFamilies.map((family) => <option key={family} value={family} />)}
+        </datalist>
+        {fontLoadStatus === 'loading' && <span className="settings-panel__hint">Loading installed fonts…</span>}
+        {fontLoadStatus === 'unavailable' && (
+          <span className="settings-panel__hint">Installed fonts unavailable; enter a CSS font family manually.</span>
+        )}
 
         <label className="settings-panel__label" htmlFor="font-size">
           Font size

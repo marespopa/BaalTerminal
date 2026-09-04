@@ -179,6 +179,7 @@ export interface SplitPaneRequest {
 export const splitPaneAtom = atom(null, (get, set, request: SplitPaneRequest) => {
   const tabs = get(tabsAtom);
   const existingLayout = get(splitLayoutAtom);
+  const defaultCwd = get(settingsAtom).defaultCwd || undefined;
 
   if (!existingLayout) {
     const primaryTabId = get(activeTabIdAtom) ?? tabs[0]?.id;
@@ -187,7 +188,7 @@ export const splitPaneAtom = atom(null, (get, set, request: SplitPaneRequest) =>
     const cell = getSplitTargetCell(null, undefined, request.direction);
     if (!cell) return;
     const newTabId = createTabId();
-    set(tabsAtom, [...tabs, { id: newTabId, title: getNextTabTitle(tabs), createdAt: Date.now() }]);
+    set(tabsAtom, [...tabs, { id: newTabId, title: getNextTabTitle(tabs), createdAt: Date.now(), cwd: defaultCwd }]);
     set(splitLayoutAtom, {
       panels: [
         { id: 'primary', tabIds: tabs.map((tab) => tab.id), activeTabId: primaryTabId, row: 0, col: 0 },
@@ -205,7 +206,7 @@ export const splitPaneAtom = atom(null, (get, set, request: SplitPaneRequest) =>
   if (!newPaneId) return;
 
   const newTabId = createTabId();
-  set(tabsAtom, [...tabs, { id: newTabId, title: getNextTabTitle(tabs), createdAt: Date.now() }]);
+  set(tabsAtom, [...tabs, { id: newTabId, title: getNextTabTitle(tabs), createdAt: Date.now(), cwd: defaultCwd }]);
   set(splitLayoutAtom, {
     panels: [...existingLayout.panels, { id: newPaneId, tabIds: [newTabId], activeTabId: newTabId, row: cell.row, col: cell.col }],
     focusedPane: newPaneId,
