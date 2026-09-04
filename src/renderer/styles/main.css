@@ -46,23 +46,33 @@ html, body, #root { width: 100%; height: 100%; margin: 0; }
 .sidebar-panel__item-remove:hover { color: #e81123; }
 
 .tab-bar { display: flex; align-items: center; gap: 2px; padding: 4px; background: var(--surface); border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: thin; }
-.tab-bar__tab { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 4px; cursor: pointer; color: var(--muted); flex: 0 0 auto; max-width: 200px; border: 1px solid transparent; }
+.tab-bar--drop-end { box-shadow: inset 0 0 0 1px var(--accent); }
+.tab-bar__tab { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 4px; cursor: pointer; color: var(--muted); flex: 0 0 auto; max-width: 200px; border: 1px solid transparent; user-select: none; }
 .tab-bar__tab--active { background: var(--bg); color: var(--text); border-color: var(--accent); }
+.tab-bar__tab--dragging { opacity: 0.4; }
+.tab-bar__tab--drop-before { box-shadow: inset 2px 0 0 var(--accent); }
+.tab-bar__tab--drop-after { box-shadow: inset -2px 0 0 var(--accent); }
+.tab-drag-ghost { position: fixed; z-index: 2000; pointer-events: none; padding: 3px 10px; background: var(--surface); border: 1px solid var(--accent); border-radius: 4px; color: var(--text); font-size: 0.8rem; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
 .tab-bar__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tab-bar__close { background: transparent; border: none; color: inherit; cursor: pointer; font-size: 0.9rem; line-height: 1; display: flex; }
 .tab-bar__new { margin-left: 4px; background: transparent; border: none; color: var(--muted); cursor: pointer; padding: 4px 8px; flex: 0 0 auto; display: flex; }
-.tab-bar__split { margin-left: auto; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--muted); cursor: pointer; padding: 4px 8px; flex: 0 0 auto; }
-.tab-bar__split:hover, .tab-bar__split--active { color: var(--text); border-color: var(--accent); }
+.tab-bar__split { background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--muted); cursor: pointer; padding: 4px 8px; flex: 0 0 auto; }
+.tab-bar__split--first { margin-left: auto; }
+.tab-bar__split:hover:not(:disabled) { color: var(--text); border-color: var(--accent); }
 .tab-bar__split:disabled { cursor: default; opacity: 0.5; }
 
 .terminal-tabs-host { position: relative; height: 100%; overflow: hidden; }
-.terminal-tabs-host--split { display: flex; flex-direction: row; }
-.terminal-tabs-host__viewport { position: absolute; inset: 0; display: grid; grid-template-rows: auto 1fr; min-height: 0; }
-.terminal-tabs-host--split .terminal-tabs-host__viewport { position: relative; inset: auto; min-width: 0; flex: 0 0 auto; }
-.terminal-tabs-host--split .terminal-tabs-host__viewport--secondary { border-left: 1px solid var(--border-strong); }
-.terminal-tabs-host--split .terminal-tabs-host__viewport--focused { box-shadow: inset 0 0 0 1px var(--accent); }
+.terminal-tabs-host--split { display: grid; }
+.terminal-tabs-host__panel { display: grid; grid-template-rows: auto 1fr; min-height: 0; min-width: 0; height: 100%; }
+.terminal-tabs-host--split .terminal-tabs-host__panel--col { border-left: 1px solid var(--border-strong); }
+.terminal-tabs-host--split .terminal-tabs-host__panel--row { border-top: 1px solid var(--border-strong); }
+.terminal-tabs-host--split .terminal-tabs-host__panel--focused { box-shadow: inset 0 0 0 1px var(--accent); }
+.terminal-tabs-host__panel-body { position: relative; min-height: 0; min-width: 0; overflow: hidden; }
+.terminal-tabs-host__viewport { position: absolute; inset: 0; min-height: 0; min-width: 0; }
 .terminal-tabs-host__viewport[hidden] { display: none; }
-.terminal-tabs-host__resize-handle { flex: 0 0 4px; align-self: stretch; cursor: col-resize; background: transparent; }
+.terminal-tabs-host__resize-handle { position: absolute; z-index: 5; background: transparent; }
+.terminal-tabs-host__resize-handle--col { top: 0; bottom: 0; width: 6px; cursor: col-resize; }
+.terminal-tabs-host__resize-handle--row { left: 0; right: 0; height: 6px; cursor: row-resize; }
 .terminal-tabs-host__resize-handle:hover, .terminal-tabs-host__resize-handle:active { background: var(--accent); opacity: 0.5; }
 
 .terminal-view { width: 100%; height: 100%; padding: 4px; position: relative; }

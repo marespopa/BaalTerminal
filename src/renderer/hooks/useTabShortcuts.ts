@@ -5,23 +5,32 @@ import {
   activeTabAtom,
   closeTabAtom,
   createTabAtom,
-  focusPaneAtom,
+  focusPaneDirectionAtom,
+  FocusDirection,
   splitLayoutAtom,
-  toggleSplitAtom,
+  splitPaneAtom,
 } from '../state/tabs';
 
 const isModifierPressed = (event: KeyboardEvent): boolean => event.ctrlKey || event.metaKey;
 
+const ARROW_DIRECTIONS: Record<string, FocusDirection> = {
+  ArrowLeft: 'left',
+  ArrowRight: 'right',
+  ArrowUp: 'up',
+  ArrowDown: 'down',
+};
+
 /**
  * Wires global keyboard shortcuts for tab lifecycle and navigation:
- * Ctrl/Cmd+T (new tab), Ctrl/Cmd+W (close tab), Ctrl/Cmd+Tab and Ctrl/Cmd+Shift+Tab (cycle tabs).
+ * Ctrl/Cmd+T (new tab), Ctrl/Cmd+W (close tab), Ctrl/Cmd+Tab and Ctrl/Cmd+Shift+Tab (cycle tabs),
+ * Ctrl/Cmd+\ (split pane right), Ctrl/Cmd+Shift+\ (split pane down), Ctrl/Cmd+Alt+Arrows (move pane focus).
  */
 export function useTabKeyboardShortcuts(): void {
   const createTab = useSetAtom(createTabAtom);
   const closeTab = useSetAtom(closeTabAtom);
   const activateRelativeTab = useSetAtom(activateRelativeTabAtom);
-  const focusPane = useSetAtom(focusPaneAtom);
-  const toggleSplit = useSetAtom(toggleSplitAtom);
+  const focusPaneDirection = useSetAtom(focusPaneDirectionAtom);
+  const splitPane = useSetAtom(splitPaneAtom);
   const activeTab = useAtomValue(activeTabAtom);
   const splitLayout = useAtomValue(splitLayoutAtom);
 
@@ -29,16 +38,18 @@ export function useTabKeyboardShortcuts(): void {
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (!isModifierPressed(event)) return;
 
-      if (event.key === '\\') {
+      if (event.key === '\\' || event.key === '|') {
         event.preventDefault();
-        toggleSplit();
+        // Shift turns '\' into '|' on US layouts: use it for the orthogonal split.
+        splitPane({ direction: event.key === '|' ? 'down' : 'right' });
         return;
       }
 
-      if (event.altKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+      const arrowDirection = event.altKey ? ARROW_DIRECTIONS[event.key] : undefined;
+      if (arrowDirection) {
         if (!splitLayout) return;
         event.preventDefault();
-        focusPane(event.key === 'ArrowLeft' ? 'primary' : 'secondary');
+        focusPaneDirection(arrowDirection);
         return;
       }
 
@@ -64,5 +75,5 @@ export function useTabKeyboardShortcuts(): void {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTab, createTab, closeTab, activateRelativeTab, focusPane, splitLayout, toggleSplit]);
+  }, [activeTab, createTab, closeTab, activateRelativeTab, focusPaneDirection, splitLayout, splitPane]);
 }
